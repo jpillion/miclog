@@ -64,6 +64,31 @@ cat test.txt
 ./miclog >> daily_log.txt
 ```
 
+### Configure
+```bash
+# Show current configuration
+./miclog config show
+
+# Set your name (used in meeting transcripts)
+./miclog config set name "John"
+
+# Set output directory for recordings
+./miclog config set output-dir ~/recordings
+
+# Manage meeting types
+./miclog config add meeting-type "Team Meeting"
+./miclog config add meeting-type "Standup"
+./miclog config list meeting-types
+./miclog config remove meeting-type "Standup"
+
+# Manage attendees
+./miclog config add attendee "Alice"
+./miclog config list attendees
+
+# Interactive configuration wizard
+./miclog config setup
+```
+
 ## Architecture
 
 Single-file Swift CLI tool using whisper.cpp for transcription:
@@ -79,6 +104,22 @@ Single-file Swift CLI tool using whisper.cpp for transcription:
 - **Audio format**: 16kHz WAV, mono, 16-bit PCM (optimal for Whisper)
 - **Model**: Whisper large (~3GB, high accuracy)
 - **Output**: Stdout with timestamps (stderr for status messages)
+- **Post-recording prompts**: After Ctrl+C, prompts user (via stderr/stdin) for meeting type, attendees, and title. Skipped if stdin is not a terminal.
+- **File output**: Writes structured transcript file with header (meeting title, date, type, attendees) to organized directory tree
+- **Configuration**: JSON config file (`config.json`) next to binary, managed via CLI subcommands or interactive wizard
+
+## File Output Structure
+
+After recording, transcripts are saved to the configured output directory:
+```
+<output_dir>/<meeting type>/<filename>.txt           # General meetings
+<output_dir>/1-1/<attendee name>/<filename>.txt      # 1-1 with single attendee
+<output_dir>/1-1/others/<filename>.txt               # 1-1 with 0 or 2+ attendees
+```
+
+Filename format: `YYYYMMDD_HH:MM_<type>[_<title or attendee>].txt`
+- Title is included for non-1-1 meetings (if provided)
+- For 1-1s, attendee name is used instead of title (title always omitted from filename)
 
 ## Key Conventions
 

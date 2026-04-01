@@ -15,5 +15,8 @@ miclog
 # Whisper models directory
 .whisper-models/
 
+# Configuration (user-specific)
+config.json
+
 # macOS system files
 .DS_Store
