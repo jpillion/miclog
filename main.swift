@@ -55,7 +55,6 @@ func listAudioInputDevices() -> [AudioInputDevice] {
         status = AudioObjectGetPropertyData(deviceID, &inputAddress, 0, nil, &bufferListSize, bufferListPtr)
         guard status == noErr else { continue }
 
-        let bufferList = bufferListPtr.pointee
         var totalChannels: UInt32 = 0
         let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: bufferListPtr))
         for buffer in buffers {
@@ -69,12 +68,12 @@ func listAudioInputDevices() -> [AudioInputDevice] {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        var nameRef: CFString = "" as CFString
-        var nameSize = UInt32(MemoryLayout<CFString>.size)
+        var nameRef: Unmanaged<CFString>?
+        var nameSize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         status = AudioObjectGetPropertyData(deviceID, &nameAddress, 0, nil, &nameSize, &nameRef)
-        guard status == noErr else { continue }
+        guard status == noErr, let cfName = nameRef?.takeUnretainedValue() else { continue }
 
-        let name = nameRef as String
+        let name = cfName as String
         inputDevices.append(AudioInputDevice(id: deviceID, name: name))
     }
 
