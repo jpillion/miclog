@@ -1,5 +1,144 @@
 import Foundation
 import AVFoundation
+import CoreAudio
+
+// MARK: - Audio Device Selection
+
+struct AudioInputDevice {
+    let id: AudioDeviceID
+    let name: String
+}
+
+func listAudioInputDevices() -> [AudioInputDevice] {
+    var propertyAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDevices,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain
+    )
+
+    var dataSize: UInt32 = 0
+    var status = AudioObjectGetPropertyDataSize(
+        AudioObjectID(kAudioObjectSystemObject),
+        &propertyAddress,
+        0, nil,
+        &dataSize
+    )
+    guard status == noErr else { return [] }
+
+    let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+    var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+    status = AudioObjectGetPropertyData(
+        AudioObjectID(kAudioObjectSystemObject),
+        &propertyAddress,
+        0, nil,
+        &dataSize,
+        &deviceIDs
+    )
+    guard status == noErr else { return [] }
+
+    var inputDevices: [AudioInputDevice] = []
+
+    for deviceID in deviceIDs {
+        // Check if device has input channels
+        var inputAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioDevicePropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var bufferListSize: UInt32 = 0
+        status = AudioObjectGetPropertyDataSize(deviceID, &inputAddress, 0, nil, &bufferListSize)
+        guard status == noErr, bufferListSize > 0 else { continue }
+
+        let bufferListPtr = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: 1)
+        defer { bufferListPtr.deallocate() }
+        status = AudioObjectGetPropertyData(deviceID, &inputAddress, 0, nil, &bufferListSize, bufferListPtr)
+        guard status == noErr else { continue }
+
+        let bufferList = bufferListPtr.pointee
+        var totalChannels: UInt32 = 0
+        let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: bufferListPtr))
+        for buffer in buffers {
+            totalChannels += buffer.mNumberChannels
+        }
+        guard totalChannels > 0 else { continue }
+
+        // Get device name
+        var nameAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceNameCFString,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var nameRef: CFString = "" as CFString
+        var nameSize = UInt32(MemoryLayout<CFString>.size)
+        status = AudioObjectGetPropertyData(deviceID, &nameAddress, 0, nil, &nameSize, &nameRef)
+        guard status == noErr else { continue }
+
+        let name = nameRef as String
+        inputDevices.append(AudioInputDevice(id: deviceID, name: name))
+    }
+
+    return inputDevices
+}
+
+func getDefaultInputDevice() -> AudioDeviceID {
+    var propertyAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultInputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain
+    )
+    var deviceID: AudioDeviceID = 0
+    var dataSize = UInt32(MemoryLayout<AudioDeviceID>.size)
+    AudioObjectGetPropertyData(
+        AudioObjectID(kAudioObjectSystemObject),
+        &propertyAddress,
+        0, nil,
+        &dataSize,
+        &deviceID
+    )
+    return deviceID
+}
+
+func setDefaultInputDevice(_ deviceID: AudioDeviceID) -> Bool {
+    var propertyAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultInputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain
+    )
+    var mutableDeviceID = deviceID
+    let status = AudioObjectSetPropertyData(
+        AudioObjectID(kAudioObjectSystemObject),
+        &propertyAddress,
+        0, nil,
+        UInt32(MemoryLayout<AudioDeviceID>.size),
+        &mutableDeviceID
+    )
+    return status == noErr
+}
+
+func resolveDevice(_ deviceArg: String) -> AudioInputDevice? {
+    let devices = listAudioInputDevices()
+
+    // Try as a number first (index from --list-devices)
+    if let index = Int(deviceArg), index >= 1, index <= devices.count {
+        return devices[index - 1]
+    }
+
+    // Try case-insensitive exact match
+    if let device = devices.first(where: { $0.name.lowercased() == deviceArg.lowercased() }) {
+        return device
+    }
+
+    // Try case-insensitive partial match
+    let matches = devices.filter { $0.name.lowercased().contains(deviceArg.lowercased()) }
+    if matches.count == 1 {
+        return matches[0]
+    }
+
+    return nil
+}
+
+// MARK: - Recording
 
 class ChunkedRecorder: NSObject, AVAudioRecorderDelegate {
     private var currentRecorder: AVAudioRecorder?
@@ -257,6 +396,10 @@ class ChunkedRecorder: NSObject, AVAudioRecorderDelegate {
             DispatchQueue.main.async { [weak self] in
                 self?.isTranscribing = false
                 self?.printStats()
+                // Restore original audio device
+                if let originalID = originalDeviceID {
+                    _ = setDefaultInputDevice(originalID)
+                }
                 exit(0)
             }
         }
@@ -376,27 +519,58 @@ extension FileHandle: @retroactive TextOutputStream {
 }
 
 func printUsage() {
-    print("Usage: miclog [--test SECONDS]", to: &standardError)
+    print("Usage: miclog [--test SECONDS] [--device NAME|NUMBER]", to: &standardError)
     print("", to: &standardError)
     print("Options:", to: &standardError)
-    print("  --test SECONDS    Record for specified seconds and exit", to: &standardError)
+    print("  --test SECONDS       Record for specified seconds and exit", to: &standardError)
+    print("  --device NAME|NUM    Use a specific audio input device", to: &standardError)
+    print("  --list-devices       List available audio input devices", to: &standardError)
     print("", to: &standardError)
     print("Output is written to stdout. Use shell redirection to save:", to: &standardError)
     print("  ./miclog > transcript.txt", to: &standardError)
     print("", to: &standardError)
     print("Examples:", to: &standardError)
-    print("  ./miclog                    # Transcribe to stdout until Ctrl+C", to: &standardError)
-    print("  ./miclog --test 30          # Transcribe for 30 seconds", to: &standardError)
-    print("  ./miclog > output.txt       # Save transcript to file", to: &standardError)
+    print("  ./miclog                             # Transcribe to stdout until Ctrl+C", to: &standardError)
+    print("  ./miclog --test 30                   # Transcribe for 30 seconds", to: &standardError)
+    print("  ./miclog --list-devices              # Show available microphones", to: &standardError)
+    print("  ./miclog --device \"AirPods Pro\"       # Record from specific device", to: &standardError)
+    print("  ./miclog --device 2                  # Record from device #2", to: &standardError)
+    print("  ./miclog > output.txt                # Save transcript to file", to: &standardError)
 }
 
 // Parse command line arguments
 var testDuration: TimeInterval? = nil
+var deviceArg: String? = nil
 var args = Array(CommandLine.arguments.dropFirst())
 
 if args.contains("--help") || args.contains("-h") {
     printUsage()
     exit(0)
+}
+
+if args.contains("--list-devices") {
+    let devices = listAudioInputDevices()
+    let defaultID = getDefaultInputDevice()
+    if devices.isEmpty {
+        print("No audio input devices found.", to: &standardError)
+        exit(1)
+    }
+    print("Available audio input devices:", to: &standardError)
+    for (i, device) in devices.enumerated() {
+        let marker = device.id == defaultID ? " (default)" : ""
+        print("  \(i + 1). \(device.name)\(marker)", to: &standardError)
+    }
+    exit(0)
+}
+
+if let deviceIndex = args.firstIndex(of: "--device") {
+    let nextIndex = args.index(after: deviceIndex)
+    guard nextIndex < args.endIndex else {
+        print("Error: --device requires a device name or number", to: &standardError)
+        printUsage()
+        exit(1)
+    }
+    deviceArg = args[nextIndex]
 }
 
 if let testIndex = args.firstIndex(of: "--test") {
@@ -416,12 +590,44 @@ if let testIndex = args.firstIndex(of: "--test") {
     testDuration = seconds
 }
 
+// Handle device selection
+var originalDeviceID: AudioDeviceID? = nil
+
+if let deviceArg = deviceArg {
+    guard let device = resolveDevice(deviceArg) else {
+        print("Error: Could not find audio device '\(deviceArg)'", to: &standardError)
+        print("", to: &standardError)
+        let devices = listAudioInputDevices()
+        if !devices.isEmpty {
+            print("Available devices:", to: &standardError)
+            for (i, d) in devices.enumerated() {
+                print("  \(i + 1). \(d.name)", to: &standardError)
+            }
+        }
+        exit(1)
+    }
+
+    // Save current default so we can restore it later
+    originalDeviceID = getDefaultInputDevice()
+
+    if setDefaultInputDevice(device.id) {
+        print("Using audio device: \(device.name)", to: &standardError)
+    } else {
+        print("Error: Could not set audio device to '\(device.name)'", to: &standardError)
+        exit(1)
+    }
+}
+
 let recorder = ChunkedRecorder()
 
 // Setup signal handler for Ctrl+C
 let signalSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
 signalSource.setEventHandler {
     recorder.stopRecording()
+    // Restore original audio device
+    if let originalID = originalDeviceID {
+        _ = setDefaultInputDevice(originalID)
+    }
 }
 signal(SIGINT, SIG_IGN)
 signalSource.resume()
@@ -430,5 +636,9 @@ signalSource.resume()
 if recorder.startRecording(duration: testDuration) {
     RunLoop.main.run()
 } else {
+    // Restore original audio device on failure
+    if let originalID = originalDeviceID {
+        _ = setDefaultInputDevice(originalID)
+    }
     exit(1)
 }
