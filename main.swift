@@ -1277,6 +1277,14 @@ if let testIndex = args.firstIndex(of: "--test") {
     testDuration = seconds
 }
 
+// Run setup wizard on first launch if no config exists
+if !FileManager.default.fileExists(atPath: configFilePath()) && isatty(STDIN_FILENO) != 0 {
+    print("Welcome to miclog! Let's set up your configuration.", to: &standardError)
+    print("", to: &standardError)
+    runConfigSetup()
+    print("", to: &standardError)
+}
+
 // Handle device selection
 var originalDeviceID: AudioDeviceID? = nil
 
