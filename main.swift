@@ -896,10 +896,10 @@ class ChunkedRecorder: NSObject, AVAudioRecorderDelegate {
         let currentDir = FileManager.default.currentDirectoryPath
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let possiblePaths = [
-            "\(currentDir)/.whisper-models/ggml-large-v3.bin",
-            "\(homeDir)/.whisper/models/ggml-large-v3.bin",
-            "/opt/homebrew/share/whisper-cpp/models/ggml-large-v3.bin",
-            "/usr/local/share/whisper-cpp/models/ggml-large-v3.bin"
+            "\(currentDir)/.whisper-models/ggml-large-v3-turbo.bin",
+            "\(homeDir)/.whisper/models/ggml-large-v3-turbo.bin",
+            "/opt/homebrew/share/whisper-cpp/models/ggml-large-v3-turbo.bin",
+            "/usr/local/share/whisper-cpp/models/ggml-large-v3-turbo.bin"
         ]
 
         for path in possiblePaths {
@@ -923,11 +923,11 @@ class ChunkedRecorder: NSObject, AVAudioRecorderDelegate {
         }
 
         guard let _ = modelPath else {
-            print("Error: Whisper large model not found")
+            print("Error: Whisper large-v3-turbo model not found")
             print("")
             print("Download with:")
             print("  mkdir -p .whisper-models")
-            print("  curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin -o .whisper-models/ggml-large-v3.bin")
+            print("  curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin -o .whisper-models/ggml-large-v3-turbo.bin")
             print("")
             print("Or use whisper.cpp model downloader:")
             print("  bash /opt/homebrew/Cellar/whisper-cpp/*/models/download-ggml-model.sh large")

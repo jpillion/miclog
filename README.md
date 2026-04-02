@@ -15,21 +15,21 @@ brew install whisper-cpp
 # This installs the whisper-cli executable
 ```
 
-### 3. Download Whisper Large Model
+### 3. Download Whisper Model
 
 ```bash
 # Create models directory
 mkdir -p .whisper-models
 
-# Download large model (~3GB)
-curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin -o .whisper-models/ggml-large-v3.bin
+# Download large-v3-turbo model (~1.6GB)
+curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin -o .whisper-models/ggml-large-v3-turbo.bin
 ```
 
 The tool will search for the model at:
-- `.whisper-models/ggml-large-v3.bin` (recommended - in project directory)
-- `~/.whisper/models/ggml-large-v3.bin`
-- `/opt/homebrew/share/whisper-cpp/models/ggml-large-v3.bin`
-- `/usr/local/share/whisper-cpp/models/ggml-large-v3.bin`
+- `.whisper-models/ggml-large-v3-turbo.bin` (recommended - in project directory)
+- `~/.whisper/models/ggml-large-v3-turbo.bin`
+- `/opt/homebrew/share/whisper-cpp/models/ggml-large-v3-turbo.bin`
+- `/usr/local/share/whisper-cpp/models/ggml-large-v3-turbo.bin`
 
 ## Build
 
@@ -219,7 +219,7 @@ Each line shows a timestamp followed by the transcribed text from that 5-second 
 - **Disk space**: Minimal (chunks deleted after transcription)
 - **Memory**: ~1-2GB (model loaded in memory)
 
-Large model transcription is CPU-intensive (~1x realtime on modern Macs). For faster results, consider using a smaller model by editing the `modelPath` search in `main.swift`.
+The large-v3-turbo model is 4-6x faster than the original large-v3 with negligible accuracy loss for English. For even faster results, consider using a smaller model by editing the `modelPath` search in `main.swift`.
 
 ## Troubleshooting
 
@@ -250,7 +250,7 @@ The large model is slow but accurate. For faster results:
 - **Audio format**: 16kHz WAV, mono, 16-bit PCM
 - **Chunk size**: 5 seconds (~800KB per chunk)
 - **Chunk location**: `/tmp/miclog_chunk_*.wav`
-- **Model**: Whisper large (~3GB)
+- **Model**: Whisper large-v3-turbo (~1.6GB)
 - **Output**: Stdout (status messages to stderr)
 
 ## Development

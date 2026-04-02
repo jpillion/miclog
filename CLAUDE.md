@@ -18,9 +18,9 @@ xcode-select --install
 # Install whisper.cpp (provides whisper-cli executable)
 brew install whisper-cpp
 
-# Download Whisper large model (~3GB)
+# Download Whisper large-v3-turbo model (~1.6GB)
 mkdir -p .whisper-models
-curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin -o .whisper-models/ggml-large-v3.bin
+curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin -o .whisper-models/ggml-large-v3-turbo.bin
 
 # Note: Microphone permission will be requested on first run
 # See README.md for detailed setup instructions
@@ -110,7 +110,7 @@ Single-file Swift CLI tool using whisper.cpp for transcription:
   - Interactive mode: Transcribe until Ctrl+C
   - Test mode: Auto-stop after specified duration
 - **Audio format**: 16kHz WAV, mono, 16-bit PCM (optimal for Whisper)
-- **Model**: Whisper large (~3GB, high accuracy)
+- **Model**: Whisper large-v3-turbo (~1.6GB, 4-6x faster than large-v3 with negligible accuracy loss)
 - **Output**: Stdout with timestamps (stderr for status messages)
 - **Post-recording prompts**: After Ctrl+C, prompts user (via stderr/stdin) for meeting type, attendees, and title. Skipped if stdin is not a terminal.
 - **File output**: Writes structured transcript file with header (meeting title, date, type, attendees) to organized directory tree
