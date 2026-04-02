@@ -62,6 +62,13 @@ cat test.txt
 
 # Append to existing file
 ./miclog >> daily_log.txt
+
+# List available audio input devices
+./miclog --list-devices
+
+# Record from a specific device (by name or number)
+./miclog --device "AirPods Pro"
+./miclog --device 2
 ```
 
 ### Configure
@@ -93,6 +100,7 @@ cat test.txt
 
 Single-file Swift CLI tool using whisper.cpp for transcription:
 
+- **CoreAudio**: Enumerates audio input devices and allows selecting a specific device via `--device`
 - **AVFoundation**: AVAudioRecorder captures microphone input in 5-second chunks
 - **Chunked Recording**: Records to temporary WAV files in `/tmp/`
 - **whisper.cpp Integration**: Shells out to whisper.cpp to transcribe each chunk
