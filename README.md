@@ -37,9 +37,34 @@ The tool will search for the model at:
 make
 ```
 
+## First-Time Setup
+
+On first launch, miclog will run an interactive setup wizard that walks you through:
+
+1. **Your name** — used to identify you in meeting transcripts
+2. **Output directory** — where transcript files are saved (e.g., `~/recordings`)
+3. **Meeting types** — categories like "1-1", "Team Meeting", "Standup" (add/remove as needed)
+4. **Attendees** — people you frequently meet with (add/remove as needed)
+
+You can re-run the wizard or change settings any time:
+```bash
+# Re-run the full setup wizard
+./miclog config setup
+
+# Or change individual settings
+./miclog config set name "John"
+./miclog config set output-dir ~/recordings
+./miclog config add meeting-type "Sprint Retro"
+./miclog config add attendee "Alice"
+./miclog config remove attendee "Bob"
+./miclog config show
+```
+
+The "1-1" meeting type is always available — it's automatically added if not already in your config.
+
 ## Usage
 
-### Basic Usage (stdout)
+### Basic Usage
 ```bash
 # Transcribe to stdout until Ctrl+C
 ./miclog
@@ -51,7 +76,105 @@ make
 ./miclog > transcript.txt
 ```
 
-### Examples
+### Audio Device Selection
+
+By default, miclog records from your system's default microphone. If you're using a Bluetooth headset or other audio interface, you can select a specific input device:
+
+```bash
+# List available audio input devices
+./miclog --list-devices
+#   1. MacBook Pro Microphone (default)
+#   2. AirPods Pro
+#   3. ZoomAudioDevice
+
+# Record from a specific device (by name or number)
+./miclog --device "AirPods Pro"
+./miclog --device 2
+
+# Partial, case-insensitive matching works too
+./miclog --device airpods
+
+# Combine with other flags
+./miclog --device 2 --test 30
+```
+
+The original default device is automatically restored when miclog exits.
+
+### Post-Recording Prompts
+
+When you stop recording (Ctrl+C or test mode ends), miclog prompts you to categorize the meeting:
+
+**1. Meeting type** (required) — choose from your configured list or add a new type:
+```
+What type of meeting was this?
+  1. 1-1
+  2. Team Meeting
+  3. Standup
+  4. + Add new type
+> 2
+```
+New types are automatically saved to your config for future use.
+
+**2. Attendees** (optional) — select from your configured list, add others, or skip:
+```
+Who attended? (comma-separated numbers, or Enter to skip)
+  1. Alice
+  2. Bob
+  3. Charlie
+  4. Others
+> 1,3,4
+Other attendees (comma-separated names):
+> Dave, Eve
+```
+Pressing Enter without selecting anyone records attendees as "Unspecified". Your own name (from config) is always included automatically.
+
+**3. Meeting title** (optional) — give the recording a descriptive name:
+```
+Meeting title (or Enter to skip):
+> Q2 Planning Review
+```
+
+These prompts are skipped automatically when stdin is not a terminal (e.g., piped usage).
+
+### Output Files
+
+Transcripts are saved as structured text files with a header and organized into directories by meeting type.
+
+**File header:**
+```
+==============================
+Meeting: Q2 Planning Review
+Date: 2026-04-01 2:03 PM
+Type: Team Meeting
+Attendees: John (me), Alice, Charlie, Dave, Eve
+==============================
+
+[2026-04-01 14:03:22] So as I was saying about the quarterly...
+[2026-04-01 14:03:27] I think we need to revisit the timeline...
+```
+
+**Directory structure:**
+```
+~/recordings/
+  Team Meeting/
+    20260401_14:03_Team Meeting_Q2 Planning Review.txt
+  Standup/
+    20260401_09:00_Standup.txt
+  1-1/
+    Alice/
+      20260401_10:00_1-1_Alice.txt
+    others/
+      20260402_15:30_1-1.txt
+```
+
+**Filename format:** `YYYYMMDD_HH:MM_<type>[_<suffix>].txt`
+
+**Special 1-1 behavior:**
+- If the meeting type is "1-1" and exactly one attendee is selected, the transcript is saved in a subdirectory named after that person (e.g., `1-1/Alice/`), and the filename uses their name instead of the title.
+- If the meeting is a 1-1 with zero, two or more attendees, or attendees are unspecified, it goes into `1-1/others/`.
+- The meeting title is **never** included in the filename for 1-1 meetings (it's still recorded in the file header).
+
+### More Examples
 
 ```bash
 # Basic transcription to terminal
@@ -60,11 +183,14 @@ make
 # Save to file
 ./miclog >> daily_log.txt
 
-# Test mode (exist after 5 seconds)
+# Test mode (exit after 5 seconds)
 ./miclog --test 5
 
 # Output to both console AND file (live viewing while saving)
 ./miclog 2>&1 | tee -a ~/miclog.txt
+
+# Record from Bluetooth headset for 30 seconds
+./miclog --device airpods --test 30
 ```
 
 ### Example Output
@@ -77,38 +203,14 @@ make
 
 Each line shows a timestamp followed by the transcribed text from that 5-second audio chunk.
 
-## Use Case: Meeting Transcription
-
-Here's a practical workflow for transcribing and summarizing meetings:
-
-1. **Start transcription** before your meeting:
-   ```bash
-   ./miclog
-   ```
-
-2. **After the meeting ends**, select all transcript text in the terminal:
-   - Press `Command + A` to select all
-   - Press `Command + C` to copy to clipboard
-   - Press `Command + K` to clear the terminal (ready for next meeting)
-
-3. **Generate AI summary**:
-   - Paste the transcript into ChatGPT (or Claude)
-   - Ask: "Please summarize this meeting transcript"
-
-This produces a very readable AI summary of your meeting with key points, action items, and decisions.
-
-**Tip**: You can also redirect to a file and keep a daily log:
-```bash
-./miclog >> meetings_$(date +%Y-%m-%d).txt
-```
-
 ## How It Works
 
-1. Records audio in 5-second chunks (WAV format, 16kHz)
+1. Records audio in 5-second chunks (WAV format, 16kHz) from the selected input device
 2. Transcribes each chunk with whisper.cpp (large model)
 3. Streams transcription to stdout as chunks complete
 4. ~5-10 second latency per chunk (recording + transcription time)
 5. Temporary chunk files are automatically cleaned up
+6. On exit, prompts for meeting metadata and saves a structured transcript file
 
 ## Performance
 
