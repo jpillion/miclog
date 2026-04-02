@@ -102,9 +102,9 @@ Single-file Swift CLI tool using whisper.cpp for transcription:
 
 - **CoreAudio**: Enumerates audio input devices and allows selecting a specific device via `--device`
 - **AVFoundation**: AVAudioRecorder captures microphone input in 5-second chunks
-- **Chunked Recording**: Records to temporary WAV files in `/tmp/`
-- **whisper.cpp Integration**: Shells out to whisper.cpp to transcribe each chunk
-- **Real-time streaming**: Transcription results stream to stdout as chunks complete
+- **Chunked Recording**: Records to temporary WAV files in `/tmp/` in 30-second chunks
+- **Post-call transcription**: After recording ends, chunks are concatenated and transcribed as a single file
+- **whisper.cpp Integration**: Shells out to whisper-cli to transcribe the complete recording
 - **Signal handling**: DispatchSource handles Ctrl+C for graceful shutdown
 - **Transcription modes**:
   - Interactive mode: Transcribe until Ctrl+C
@@ -133,8 +133,7 @@ Filename format: `YYYYMMDD_HH:MM_<type>[_<title or attendee>].txt`
 
 - Output: Stdout (use shell redirection to save: `./miclog > file.txt`)
 - Timestamp format: `[YYYY-MM-DD HH:MM:SS]` at the start of each transcribed line
-- Chunk size: 5 seconds (~800KB WAV per chunk)
-- Chunks are deleted after transcription (no disk space accumulation)
-- Background transcription queue processes chunks asynchronously
-- Latency: ~5-10 seconds per chunk (depends on CPU speed)
+- Chunk size: 30 seconds (~960KB WAV per chunk)
+- Chunks are concatenated after recording, then transcribed as one file
+- All temporary files are cleaned up after transcription
 - Status messages go to stderr, transcription to stdout

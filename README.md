@@ -205,12 +205,15 @@ Each line shows a timestamp followed by the transcribed text from that 5-second 
 
 ## How It Works
 
-1. Records audio in 5-second chunks (WAV format, 16kHz) from the selected input device
-2. Transcribes each chunk with whisper.cpp (large model)
-3. Streams transcription to stdout as chunks complete
-4. ~5-10 second latency per chunk (recording + transcription time)
-5. Temporary chunk files are automatically cleaned up
-6. On exit, prompts for meeting metadata and saves a structured transcript file
+1. Records audio in 30-second chunks (WAV format, 16kHz) from the selected input device
+2. Silent chunks are detected and discarded automatically
+3. When recording stops (Ctrl+C or test mode ends), prompts for meeting metadata
+4. Concatenates all audio chunks into a single recording
+5. Transcribes the complete recording with whisper.cpp (large-v3-turbo model)
+6. Outputs transcript to stdout and saves a structured file with meeting header
+7. All temporary audio files are cleaned up automatically
+
+This approach keeps CPU usage minimal during recording (no real-time transcription), which is important when running alongside video calls.
 
 ## Performance
 
@@ -248,7 +251,7 @@ The large model is slow but accurate. For faster results:
 ## Technical Details
 
 - **Audio format**: 16kHz WAV, mono, 16-bit PCM
-- **Chunk size**: 5 seconds (~800KB per chunk)
+- **Chunk size**: 30 seconds (~960KB per chunk)
 - **Chunk location**: `/tmp/miclog_chunk_*.wav`
 - **Model**: Whisper large-v3-turbo (~1.6GB)
 - **Output**: Stdout (status messages to stderr)
