@@ -198,7 +198,7 @@ Attendees: John (me), Alice, Charlie, Dave, Eve
 ```
 [2026-03-09 15:05:03] Okay, I am now testing audio transcription.
 [2026-03-09 15:05:08] I'm waiting for it to print something to the screen.
-[2026-03-09 15:05:13] Oh my god, I cannot believe this is working.
+[2026-03-09 15:05:13] I cannot believe this is working.
 ```
 
 Each line shows a timestamp followed by the transcribed text from that 5-second audio chunk.
